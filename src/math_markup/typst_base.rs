@@ -3,11 +3,11 @@ use serenity::futures::lock::Mutex;
 use std::cell::RefCell;
 use std::io::Cursor;
 use std::sync::OnceLock;
-use typst::diag::{FileError, FileResult, Severity, SourceDiagnostic};
+use typst::diag::{EcoString, FileError, FileResult, Severity, SourceDiagnostic};
 use typst::eval::Tracer;
 use typst::foundations::{Bytes, Datetime};
 use typst::layout::{Abs, Axes};
-use typst::syntax::{FileId, Source};
+use typst::syntax::{package::PackageSpec, FileId, Source};
 use typst::text::{Font, FontBook};
 use typst::Library;
 
@@ -71,7 +71,7 @@ impl TypstRendered {
     pub(crate) fn new() -> Self {
         let fonts = get_fonts();
         Self {
-            library: Prehashed::new(Library::build()),
+            library: Prehashed::new(Library::builder().build()),
             fontbook: Prehashed::new(FontBook::from_fonts(&fonts)),
             fonts,
             files: RefCell::new(Vec::new()),
@@ -202,11 +202,15 @@ impl TypstRendered {
         let mut tracer = Tracer::default();
         let document =
             typst::compile(self, &mut tracer).map_err(|e| RenderErrors::SourceError(e.to_vec()))?;
-        let frame = document.pages.first().ok_or(RenderErrors::NoPageError)?;
+        let frame = &document
+            .pages
+            .first()
+            .ok_or(RenderErrors::NoPageError)?
+            .frame;
         let pixels = determine_pixels_per_point(frame.size())?;
 
         let pixmap = typst_render::render(
-            frame,
+            &frame,
             pixels as f32,
             typst::visualize::Color::from_u8(0, 0, 0, 0),
         );
@@ -247,18 +251,6 @@ fn determine_pixels_per_point(size: Axes<Abs>) -> Result<f64, RenderErrors> {
 }
 
 impl typst::World for TypstRendered {
-    #[doc = " The standard library."]
-    #[doc = ""]
-    #[doc = " Can be created through `Library::build()`."]
-    fn library(&self) -> &Prehashed<Library> {
-        &self.library
-    }
-
-    #[doc = " Metadata about all known fonts."]
-    fn book(&self) -> &Prehashed<FontBook> {
-        &self.fontbook
-    }
-
     #[doc = " Access the main source file."]
     fn main(&self) -> Source {
         let Some(e) = &self.source else {
@@ -298,6 +290,28 @@ impl typst::World for TypstRendered {
     #[doc = " return an error."]
     fn today(&self, _offset: Option<i64>) -> Option<Datetime> {
         None
+    }
+
+    #[doc = " A list of all available packages and optionally descriptions for them."]
+    #[doc = ""]
+    #[doc = " This function is optional to implement. It enhances the user experience"]
+    #[doc = " by enabling autocompletion for packages. Details about packages from the"]
+    #[doc = " `@preview` namespace are available from"]
+    #[doc = " `https://packages.typst.org/preview/index.json`."]
+    fn packages(&self) -> &[(PackageSpec, Option<EcoString>)] {
+        &[]
+    }
+
+    #[doc = " The standard library."]
+    #[doc = ""]
+    #[doc = " Can be created through `Library::build()`."]
+    fn library(&self) -> &Prehashed<Library> {
+        &self.library
+    }
+
+    #[doc = " Metadata about all known fonts."]
+    fn book(&self) -> &Prehashed<FontBook> {
+        &self.fontbook
     }
 }
 #[derive(Debug)]
