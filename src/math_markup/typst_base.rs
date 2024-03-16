@@ -125,8 +125,9 @@ impl TypstRendered {
     fn preamble() -> String {
         let imports = r#"
             #import "@preview/whalogen:0.1.0": *
-            #import "@preview/mitex:0.2.1": *        
+            #import "@preview/mitex:0.2.2": *        
             "#;
+        // let imports = "";
         let theme = r#"
             #let fg = rgb(219, 222, 225)
             #let bg = rgb(49, 51, 56)
@@ -334,8 +335,8 @@ impl std::fmt::Display for RenderErrors {
                         .filter(|a| !a.as_str().trim().is_empty())
                         .fold(String::new(), |acc, e| acc + e.as_str() + "\n");
                     let ret = match x.severity {
-                        Severity::Error => acc + "Error:",
-                        Severity::Warning => acc + "Warning:",
+                        Severity::Error => acc + "\nError:",
+                        Severity::Warning => acc + "\nWarning:",
                     } + " "
                         + x.message.as_str()
                         + if !q.is_empty() { "\nHints:" } else { "" }
